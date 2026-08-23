@@ -16,12 +16,21 @@ const app = express();
 app.use(cors({ origin: config.corsOrigin, credentials: false }));
 app.use(express.json());
 
-app.get('/api/health', async (_req, res) => {
+// Живость процесса (не зависит от базы — иначе деплой падает при проблемах с БД)
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true });
+});
+
+// Диагностика подключения к базе
+app.get('/api/health/db', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
     res.json({ ok: true });
-  } catch {
-    res.status(503).json({ ok: false, error: 'База данных недоступна' });
+  } catch (err) {
+    res.status(503).json({
+      ok: false,
+      error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+    });
   }
 });
 
