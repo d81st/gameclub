@@ -7,33 +7,91 @@ import {
   todayLocalISO,
   TYPE_LABELS,
 } from '../shared/format';
-import type { DailyReport } from '../shared/types';
+import type { DailyReport, RangeReport } from '../shared/types';
+import RevenueChart from '../components/RevenueChart';
+
+type Mode = 'day' | 'week' | 'month';
+
+function toISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Диапазон недели (пн–вс) или календарного месяца, содержащего дату */
+function rangeFor(mode: Mode, dateISO: string): { from: string; to: string } {
+  const d = new Date(`${dateISO}T00:00:00`);
+  if (mode === 'week') {
+    const shift = (d.getDay() + 6) % 7; // 0 = понедельник
+    const mon = new Date(d.getTime() - shift * 86400000);
+    const sun = new Date(mon.getTime() + 6 * 86400000);
+    return { from: toISO(mon), to: toISO(sun) };
+  }
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return { from: toISO(first), to: toISO(last) };
+}
+
+const RU_MONTHS = [
+  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+];
 
 export default function ReportPage() {
+  const [mode, setMode] = useState<Mode>('day');
   const [date, setDate] = useState(todayLocalISO());
-  const [report, setReport] = useState<DailyReport | null>(null);
+  const [daily, setDaily] = useState<DailyReport | null>(null);
+  const [range, setRange] = useState<RangeReport | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      setReport(await api<DailyReport>(`/api/reports/daily?date=${date}`));
+      if (mode === 'day') {
+        setDaily(await api<DailyReport>(`/api/reports/daily?date=${date}`));
+      } else {
+        const { from, to } = rangeFor(mode, date);
+        setRange(await api<RangeReport>(`/api/reports/range?from=${from}&to=${to}`));
+      }
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки');
     }
-  }, [date]);
+  }, [mode, date]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const report = mode === 'day' ? daily : range;
+  const periodLabel =
+    mode === 'day'
+      ? null
+      : mode === 'week'
+        ? `${rangeFor('week', date).from} — ${rangeFor('week', date).to}`
+        : `${RU_MONTHS[new Date(`${date}T00:00:00`).getMonth()]} ${new Date(`${date}T00:00:00`).getFullYear()}`;
+
   return (
     <div>
-      <h1>Отчёт за день</h1>
+      <h1>Отчёты</h1>
+
       <div className="filters">
+        <div className="seg">
+          {(['day', 'week', 'month'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              className={`seg-btn ${mode === m ? 'active' : ''}`}
+              onClick={() => setMode(m)}
+            >
+              {m === 'day' ? 'День' : m === 'week' ? 'Неделя' : 'Месяц'}
+            </button>
+          ))}
+        </div>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
+      {periodLabel && <div className="muted" style={{ marginBottom: 12 }}>{periodLabel}</div>}
       {error && <div className="error-text">{error}</div>}
+
       {report && (
         <>
           <div className="stat-row">
@@ -50,6 +108,15 @@ export default function ReportPage() {
               <div className="value">{formatDuration(report.totalMinutes)}</div>
             </div>
           </div>
+
+          {mode !== 'day' && range && (
+            <>
+              <h2>Выручка по дням</h2>
+              <div className="card">
+                <RevenueChart days={range.days} />
+              </div>
+            </>
+          )}
 
           <h2>По точкам</h2>
           <div className="card" style={{ padding: 0 }}>
@@ -86,34 +153,38 @@ export default function ReportPage() {
             </table>
           </div>
 
-          <h2>По способу оплаты</h2>
-          <div className="card" style={{ padding: 0 }}>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Способ</th>
-                  <th>Сессий</th>
-                  <th>Выручка</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.byPayment.map((p) => (
-                  <tr key={p.method}>
-                    <td>{PAYMENT_LABELS[p.method] ?? p.method}</td>
-                    <td>{p.sessionsCount}</td>
-                    <td>{formatUZS(p.revenue)}</td>
-                  </tr>
-                ))}
-                {report.byPayment.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="muted">
-                      Нет данных
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {mode === 'day' && daily && (
+            <>
+              <h2>По способу оплаты</h2>
+              <div className="card" style={{ padding: 0 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Способ</th>
+                      <th>Сессий</th>
+                      <th>Выручка</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {daily.byPayment.map((p) => (
+                      <tr key={p.method}>
+                        <td>{PAYMENT_LABELS[p.method] ?? p.method}</td>
+                        <td>{p.sessionsCount}</td>
+                        <td>{formatUZS(p.revenue)}</td>
+                      </tr>
+                    ))}
+                    {daily.byPayment.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="muted">
+                          Нет данных
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

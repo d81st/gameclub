@@ -170,6 +170,28 @@ input:focus, select:focus { border-color: var(--accent); }
 
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* Переключатель периода отчёта */
+.seg {
+  display: inline-flex;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg-btn {
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.seg-btn.active { background: var(--accent); color: #fff; }
+
+/* График */
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 /* ==================== Мобильная версия ==================== */
 @media (max-width: 768px) {
   body { font-size: 16px; } /* не даём iOS зумить поля ввода */
