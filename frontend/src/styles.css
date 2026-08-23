@@ -46,8 +46,11 @@ input, select { font: inherit; }
   text-decoration: none;
   padding: 10px 12px;
   border-radius: 8px;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.sidebar .nav-icon { display: none; }
 .sidebar a.active, .sidebar a:hover { color: var(--text); background: var(--panel-2); }
 .sidebar .spacer { flex: 1; }
 .sidebar .userbox { padding: 10px 12px; color: var(--muted); font-size: 13px; }
@@ -164,3 +167,101 @@ input:focus, select:focus { border-color: var(--accent); }
 
 .muted { color: var(--muted); }
 .mt { margin-top: 16px; }
+
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ==================== Мобильная версия ==================== */
+@media (max-width: 768px) {
+  body { font-size: 16px; } /* не даём iOS зумить поля ввода */
+
+  .app-layout { flex-direction: column; }
+
+  /* Боковое меню превращается в нижнюю навигацию */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 62px;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid var(--border);
+    gap: 0;
+    z-index: 40;
+  }
+  .sidebar .brand,
+  .sidebar .spacer,
+  .sidebar .userbox { display: none; }
+
+  .sidebar a,
+  .sidebar .logout {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 2px;
+    font-size: 11px;
+    border: none;
+    background: none;
+  }
+  .sidebar .nav-icon { display: block; font-size: 20px; line-height: 1; }
+  .sidebar .nav-label { line-height: 1; }
+  .sidebar a.active { background: none; color: var(--accent); }
+
+  .main {
+    padding: 14px 12px calc(80px + env(safe-area-inset-bottom));
+    max-width: 100%;
+  }
+
+  h1 { font-size: 19px; margin-bottom: 12px; }
+
+  /* Карточки точек: две колонки на телефоне */
+  .grid-stations {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .card { padding: 12px; }
+  .station-name { font-size: 15px; }
+  .timer { font-size: 21px; }
+  .badge { font-size: 11px; padding: 2px 6px; }
+
+  /* Крупные кнопки под палец */
+  .btn { min-height: 44px; padding: 10px 12px; }
+  input[type='text'], input[type='password'], input[type='number'], input[type='date'], select {
+    min-height: 44px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .filters { gap: 8px; }
+  .filters input, .filters select { width: auto; flex: 1; min-width: 130px; }
+
+  .stat-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { padding: 12px; }
+  .stat .value { font-size: 18px; }
+
+  /* Таблицы: горизонтальная прокрутка, компактнее */
+  .card:has(.table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table th, .table td { padding: 8px 8px; font-size: 13px; white-space: nowrap; }
+
+  /* Модалка почти во весь экран, прижата книзу */
+  .modal-backdrop { align-items: flex-end; }
+  .modal {
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  .btn-row { flex-wrap: wrap; }
+  .btn-row .btn { flex: 1; }
+}
+
+/* Совсем узкие экраны — одна колонка карточек */
+@media (max-width: 360px) {
+  .grid-stations { grid-template-columns: 1fr; }
+}
