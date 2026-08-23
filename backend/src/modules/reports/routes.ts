@@ -1,15 +1,21 @@
 import { Router } from 'express';
 import { query } from '../../db/pool.js';
 import { HttpError, asyncHandler } from '../../middleware/errors.js';
-import { authRequired } from '../../middleware/auth.js';
+import { adminOnly, authRequired } from '../../middleware/auth.js';
 import { config } from '../../config.js';
 
 export const reportsRouter = Router();
 reportsRouter.use(authRequired);
 
-// Отчёт за период: выручка по дням + итоги + разрез по точкам
+/** Сегодняшняя дата в часовом поясе клуба (YYYY-MM-DD) */
+function todayInClubTz(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: config.clubTimezone });
+}
+
+// Отчёт за период: выручка по дням + итоги + разрез по точкам (только админ)
 reportsRouter.get(
   '/range',
+  adminOnly,
   asyncHandler(async (req, res) => {
     const from = typeof req.query.from === 'string' ? req.query.from : null;
     const to = typeof req.query.to === 'string' ? req.query.to : null;
@@ -90,9 +96,13 @@ reportsRouter.get(
 reportsRouter.get(
   '/daily',
   asyncHandler(async (req, res) => {
-    const date = typeof req.query.date === 'string' ? req.query.date : null;
+    let date = typeof req.query.date === 'string' ? req.query.date : null;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new HttpError(400, 'Укажите дату в формате YYYY-MM-DD');
+    }
+    // Работник видит итог только за сегодня (нужно для сдачи кассы)
+    if (req.user!.role !== 'admin') {
+      date = todayInClubTz();
     }
     const tz = config.clubTimezone;
 

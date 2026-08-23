@@ -22,13 +22,25 @@ const emptyForm: StationForm = {
   sortOrder: '0',
 };
 
+interface Worker {
+  id: number;
+  username: string;
+  fullName: string;
+  role: 'admin' | 'operator';
+  isActive: boolean;
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [stations, setStations] = useState<Station[]>([]);
   const [form, setForm] = useState<StationForm | null>(null);
   const [error, setError] = useState('');
   const [pwd, setPwd] = useState({ current: '', next: '' });
   const [pwdMsg, setPwdMsg] = useState('');
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [wForm, setWForm] = useState<{ username: string; password: string; fullName: string } | null>(null);
+  const [wError, setWError] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -39,9 +51,54 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadWorkers = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setWorkers(await api<Worker[]>('/api/users'));
+    } catch {
+      /* список работников не критичен */
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    if (isAdmin) load();
+    loadWorkers();
+  }, [load, loadWorkers, isAdmin]);
+
+  async function createWorker(e: FormEvent) {
+    e.preventDefault();
+    if (!wForm) return;
+    setWError('');
+    try {
+      await api('/api/users', { method: 'POST', body: wForm });
+      setWForm(null);
+      await loadWorkers();
+    } catch (err) {
+      setWError(err instanceof Error ? err.message : 'Ошибка');
+    }
+  }
+
+  async function resetWorkerPassword(w: Worker) {
+    const newPassword = window.prompt(`Новый пароль для «${w.username}» (мин. 6 символов):`);
+    if (!newPassword) return;
+    try {
+      await api(`/api/users/${w.id}/password`, { method: 'POST', body: { newPassword } });
+      window.alert('Пароль изменён');
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Ошибка');
+    }
+  }
+
+  async function toggleWorkerActive(w: Worker) {
+    const action = w.isActive ? 'Заблокировать' : 'Разблокировать';
+    if (!window.confirm(`${action} работника «${w.username}»?`)) return;
+    try {
+      await api(`/api/users/${w.id}/active`, { method: 'POST', body: { isActive: !w.isActive } });
+      await loadWorkers();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Ошибка');
+    }
+  }
 
   async function saveStation(e: FormEvent) {
     e.preventDefault();
@@ -97,6 +154,114 @@ export default function SettingsPage() {
       <h1>Настройки</h1>
       {error && <div className="error-text" style={{ marginBottom: 12 }}>{error}</div>}
 
+      {isAdmin && (
+        <>
+          <h2>Работники</h2>
+          <div className="card" style={{ padding: 0, marginBottom: 12 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Логин</th>
+                  <th>Имя</th>
+                  <th>Роль</th>
+                  <th>Статус</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map((w) => (
+                  <tr key={w.id}>
+                    <td>{w.username}</td>
+                    <td>{w.fullName || '—'}</td>
+                    <td className="muted">{w.role === 'admin' ? '👑 Админ' : 'Работник'}</td>
+                    <td className="muted">{w.isActive ? 'Активен' : '⛔ Заблокирован'}</td>
+                    <td>
+                      {w.id !== user?.id && (
+                        <div className="btn-row">
+                          <button
+                            className="btn btn-ghost"
+                            title="Сбросить пароль"
+                            onClick={() => resetWorkerPassword(w)}
+                          >
+                            🔑
+                          </button>
+                          <button
+                            className="btn btn-ghost"
+                            title={w.isActive ? 'Заблокировать' : 'Разблокировать'}
+                            onClick={() => toggleWorkerActive(w)}
+                          >
+                            {w.isActive ? '⛔' : '✅'}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            className="btn btn-primary"
+            style={{ marginBottom: 20 }}
+            onClick={() => setWForm({ username: '', password: '', fullName: '' })}
+          >
+            + Добавить работника
+          </button>
+
+          {wForm && (
+            <div className="modal-backdrop" onClick={() => setWForm(null)}>
+              <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={createWorker}>
+                <h3>Новый работник</h3>
+                <div className="field">
+                  <label>Логин (латиница)</label>
+                  <input
+                    type="text"
+                    value={wForm.username}
+                    onChange={(e) => setWForm({ ...wForm, username: e.target.value })}
+                    autoFocus
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                </div>
+                <div className="field">
+                  <label>Пароль (мин. 6 символов)</label>
+                  <input
+                    type="text"
+                    value={wForm.password}
+                    onChange={(e) => setWForm({ ...wForm, password: e.target.value })}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                  />
+                </div>
+                <div className="field">
+                  <label>Имя (необязательно)</label>
+                  <input
+                    type="text"
+                    value={wForm.fullName}
+                    onChange={(e) => setWForm({ ...wForm, fullName: e.target.value })}
+                  />
+                </div>
+                {wError && <div className="error-text">{wError}</div>}
+                <div className="btn-row">
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={wForm.username.length < 3 || wForm.password.length < 6}
+                  >
+                    Создать
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setWForm(null)}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
+      )}
+
+      {isAdmin && (
+      <>
       <h2>Точки и тарифы</h2>
       <div className="card" style={{ padding: 0, marginBottom: 12 }}>
         <table className="table">
@@ -210,6 +375,8 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
+      )}
+      </>
       )}
 
       <h2 className="mt">Смена пароля</h2>

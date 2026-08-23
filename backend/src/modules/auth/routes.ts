@@ -26,13 +26,17 @@ authRouter.post(
       password_hash: string;
       full_name: string;
       role: 'admin' | 'operator';
-    }>('SELECT id, username, password_hash, full_name, role FROM users WHERE LOWER(username) = LOWER($1)', [
+      is_active: boolean;
+    }>('SELECT id, username, password_hash, full_name, role, is_active FROM users WHERE LOWER(username) = LOWER($1)', [
       username.trim(),
     ]);
 
     const user = rows[0];
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       throw new HttpError(401, 'Неверный логин или пароль');
+    }
+    if (!user.is_active) {
+      throw new HttpError(403, 'Аккаунт заблокирован');
     }
 
     const token = signToken({ id: user.id, username: user.username, role: user.role });

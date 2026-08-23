@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   full_name     TEXT NOT NULL DEFAULT '',
   role          TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'operator')),
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

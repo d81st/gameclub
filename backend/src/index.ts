@@ -8,6 +8,7 @@ import { authRouter } from './modules/auth/routes.js';
 import { stationsRouter } from './modules/stations/routes.js';
 import { sessionsRouter } from './modules/sessions/routes.js';
 import { reportsRouter } from './modules/reports/routes.js';
+import { usersRouter } from './modules/users/routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { pool } from './db/pool.js';
 
@@ -38,6 +39,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/stations', stationsRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/users', usersRouter);
 
 // Раздача собранного фронтенда (production: frontend/dist копируется в backend/public)
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');

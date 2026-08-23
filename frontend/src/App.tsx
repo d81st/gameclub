@@ -28,7 +28,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/report" element={<ReportPage />} />
+        {user.role === 'admin' && <Route path="/report" element={<ReportPage />} />}
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

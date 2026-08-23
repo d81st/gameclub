@@ -16,10 +16,12 @@ export default function Layout() {
           <span className="nav-icon">🕒</span>
           <span className="nav-label">История</span>
         </NavLink>
-        <NavLink to="/report">
-          <span className="nav-icon">📊</span>
-          <span className="nav-label">Отчёт</span>
-        </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink to="/report">
+            <span className="nav-icon">📊</span>
+            <span className="nav-label">Отчёт</span>
+          </NavLink>
+        )}
         <NavLink to="/settings">
           <span className="nav-icon">⚙️</span>
           <span className="nav-label">Настройки</span>

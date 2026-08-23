@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../shared/api';
+import { useAuth } from '../shared/auth';
 import { formatDuration, formatUZS, PAYMENT_LABELS } from '../shared/format';
 import type { PaymentMethod, Station } from '../shared/types';
 
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function CloseSessionModal({ station, onClose, onDone }: Props) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const sessionId = station.activeSession!.id;
   const [preview, setPreview] = useState<{ minutes: number; amount: number } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -28,7 +31,7 @@ export default function CloseSessionModal({ station, onClose, onDone }: Props) {
     setError('');
     setBusy(true);
     try {
-      const amountFinal = override.trim() !== '' ? Number(override) : undefined;
+      const amountFinal = isAdmin && override.trim() !== '' ? Number(override) : undefined;
       if (amountFinal !== undefined && (!Number.isInteger(amountFinal) || amountFinal < 0)) {
         setError('Сумма должна быть целым неотрицательным числом');
         setBusy(false);
@@ -74,17 +77,19 @@ export default function CloseSessionModal({ station, onClose, onDone }: Props) {
           </select>
         </div>
 
-        <div className="field">
-          <label>Другая сумма (если взяли не по счётчику)</label>
-          <input
-            type="number"
-            min={0}
-            step={100}
-            placeholder={preview ? String(preview.amount) : ''}
-            value={override}
-            onChange={(e) => setOverride(e.target.value)}
-          />
-        </div>
+        {isAdmin && (
+          <div className="field">
+            <label>Другая сумма (если взяли не по счётчику)</label>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              placeholder={preview ? String(preview.amount) : ''}
+              value={override}
+              onChange={(e) => setOverride(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="field">
           <label>Заметка</label>

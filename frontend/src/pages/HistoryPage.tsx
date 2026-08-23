@@ -8,8 +8,11 @@ import {
   todayLocalISO,
 } from '../shared/format';
 import type { SessionRow, Station } from '../shared/types';
+import { useAuth } from '../shared/auth';
 
 export default function HistoryPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [date, setDate] = useState(todayLocalISO());
   const [stationId, setStationId] = useState('');
   const [stations, setStations] = useState<Station[]>([]);
@@ -47,9 +50,11 @@ export default function HistoryPage() {
 
   return (
     <div>
-      <h1>История сессий</h1>
+      <h1>{isAdmin ? 'История сессий' : 'Сессии за сегодня'}</h1>
       <div className="filters">
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {isAdmin && (
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        )}
         <select value={stationId} onChange={(e) => setStationId(e.target.value)}>
           <option value="">Все точки</option>
           {stations.map((s) => (
@@ -74,6 +79,7 @@ export default function HistoryPage() {
               <th>Сумма</th>
               <th>Оплата</th>
               <th>Заметка</th>
+              {isAdmin && <th>Закрыл</th>}
             </tr>
           </thead>
           <tbody>
@@ -92,11 +98,12 @@ export default function HistoryPage() {
                 </td>
                 <td>{r.paymentMethod ? PAYMENT_LABELS[r.paymentMethod] : '—'}</td>
                 <td className="muted">{r.note}</td>
+                {isAdmin && <td className="muted">{r.closedBy ?? '—'}</td>}
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="muted">
+                <td colSpan={isAdmin ? 8 : 7} className="muted">
                   Нет сессий за выбранный день
                 </td>
               </tr>

@@ -4,6 +4,7 @@ import { pool, query } from '../../db/pool.js';
 import { HttpError, asyncHandler } from '../../middleware/errors.js';
 import { authRequired } from '../../middleware/auth.js';
 import { calcAmount, calcMinutes } from './billing.js';
+import { config } from '../../config.js';
 
 export const sessionsRouter = Router();
 sessionsRouter.use(authRequired);
@@ -56,6 +57,11 @@ sessionsRouter.post(
     const parsed = closeSchema.safeParse(req.body);
     if (!parsed.success) throw new HttpError(400, 'Укажите способ оплаты');
     const { paymentMethod, amountFinal, note } = parsed.data;
+
+    // Ручная корректировка суммы — только для админа (защита от злоупотреблений)
+    if (amountFinal !== undefined && req.user!.role !== 'admin') {
+      throw new HttpError(403, 'Изменить сумму может только администратор');
+    }
 
     const client = await pool.connect();
     try {
@@ -113,6 +119,20 @@ sessionsRouter.post(
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) throw new HttpError(400, 'Неверный id');
+
+    // Работник может отменить только в первые 5 минут (исправление ошибочного старта)
+    if (req.user!.role !== 'admin') {
+      const cur = await query<{ started_at: Date }>(
+        `SELECT started_at FROM sessions WHERE id = $1 AND status = 'active'`,
+        [id],
+      );
+      if (!cur.rows[0]) throw new HttpError(404, 'Активная сессия не найдена');
+      const ageMs = Date.now() - new Date(cur.rows[0].started_at).getTime();
+      if (ageMs > 5 * 60 * 1000) {
+        throw new HttpError(403, 'Отменить сессию старше 5 минут может только администратор');
+      }
+    }
+
     const { rowCount } = await query(
       `UPDATE sessions
        SET status = 'cancelled', ended_at = now(), closed_by = $1
@@ -128,13 +148,23 @@ sessionsRouter.post(
 sessionsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const from = typeof req.query.from === 'string' ? req.query.from : null;
-    const to = typeof req.query.to === 'string' ? req.query.to : null;
+    let from = typeof req.query.from === 'string' ? req.query.from : null;
+    let to = typeof req.query.to === 'string' ? req.query.to : null;
     const stationId = req.query.stationId ? Number(req.query.stationId) : null;
     const limit = Math.min(Number(req.query.limit ?? 200), 500);
 
     const conditions: string[] = [`se.status <> 'active'`];
     const params: unknown[] = [];
+
+    // Работник видит историю только за сегодняшний день клуба
+    if (req.user!.role !== 'admin') {
+      from = null;
+      to = null;
+      params.push(config.clubTimezone);
+      conditions.push(
+        `(se.started_at AT TIME ZONE $${params.length})::date = (now() AT TIME ZONE $${params.length})::date`,
+      );
+    }
     if (from) {
       params.push(from);
       conditions.push(`se.started_at >= $${params.length}::timestamptz`);
