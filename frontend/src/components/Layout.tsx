@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../shared/auth';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="app-layout">
@@ -28,10 +28,6 @@ export default function Layout() {
         <div className="userbox">
           {user?.fullName || user?.username}
         </div>
-        <button className="logout" onClick={logout} title="Выйти">
-          <span className="nav-icon">🚪</span>
-          <span className="nav-label">Выйти</span>
-        </button>
       </aside>
       <main className="main">
         <Outlet />

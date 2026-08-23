@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../shared/api';
+import { useAuth } from '../shared/auth';
 import { formatUZS, TYPE_LABELS } from '../shared/format';
 import type { Station, StationType } from '../shared/types';
 
@@ -22,6 +23,7 @@ const emptyForm: StationForm = {
 };
 
 export default function SettingsPage() {
+  const { user, logout } = useAuth();
   const [stations, setStations] = useState<Station[]>([]);
   const [form, setForm] = useState<StationForm | null>(null);
   const [error, setError] = useState('');
@@ -237,6 +239,21 @@ export default function SettingsPage() {
           Сменить пароль
         </button>
       </form>
+
+      <h2 className="mt">Аккаунт</h2>
+      <div className="card" style={{ maxWidth: 380 }}>
+        <div className="muted" style={{ marginBottom: 12 }}>
+          Вы вошли как <b>{user?.fullName || user?.username}</b>
+        </div>
+        <button
+          className="btn btn-stop"
+          onClick={() => {
+            if (window.confirm('Точно выйти из аккаунта?')) logout();
+          }}
+        >
+          🚪 Выйти из аккаунта
+        </button>
+      </div>
     </div>
   );
 }
