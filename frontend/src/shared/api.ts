@@ -33,7 +33,8 @@ export async function api<T>(
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
 
-  if (res.status === 401) {
+  // 401 на самом логине — это неверные данные, а не истёкшая сессия
+  if (res.status === 401 && !path.startsWith('/api/auth/login')) {
     setToken(null);
     window.location.href = '/login';
     throw new ApiError(401, 'Сессия истекла');

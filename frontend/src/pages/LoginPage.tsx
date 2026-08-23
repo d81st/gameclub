@@ -7,6 +7,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -15,7 +16,8 @@ export default function LoginPage() {
     setError('');
     setBusy(true);
     try {
-      await login(username, password);
+      // Обрезаем случайные пробелы от телефонной клавиатуры/автозаполнения
+      await login(username.trim(), password.trim());
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка входа');
@@ -36,19 +38,36 @@ export default function LoginPage() {
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="email"
           />
         </div>
         <div className="field">
           <label>Пароль</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
+          <div className="pwd-wrap">
+            <input
+              type={showPwd ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              className="pwd-toggle"
+              onClick={() => setShowPwd((v) => !v)}
+              aria-label={showPwd ? 'Скрыть пароль' : 'Показать пароль'}
+            >
+              {showPwd ? '🙈' : '👁️'}
+            </button>
+          </div>
         </div>
         {error && <div className="error-text">{error}</div>}
-        <button className="btn btn-primary" disabled={busy || !username || !password}>
+        <button className="btn btn-primary" disabled={busy || !username.trim() || !password.trim()}>
           {busy ? 'Вход…' : 'Войти'}
         </button>
       </form>

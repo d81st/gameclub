@@ -19,14 +19,15 @@ authRouter.post(
     if (!parsed.success) throw new HttpError(400, 'Введите логин и пароль');
     const { username, password } = parsed.data;
 
+    // Логин без учёта регистра и случайных пробелов (телефонные клавиатуры)
     const { rows } = await query<{
       id: number;
       username: string;
       password_hash: string;
       full_name: string;
       role: 'admin' | 'operator';
-    }>('SELECT id, username, password_hash, full_name, role FROM users WHERE username = $1', [
-      username,
+    }>('SELECT id, username, password_hash, full_name, role FROM users WHERE LOWER(username) = LOWER($1)', [
+      username.trim(),
     ]);
 
     const user = rows[0];
