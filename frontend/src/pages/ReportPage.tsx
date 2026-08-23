@@ -10,7 +10,21 @@ import {
 import type { DailyReport, RangeReport } from '../shared/types';
 import RevenueChart from '../components/RevenueChart';
 
-type Mode = 'day' | 'week' | 'month';
+type Mode = 'day' | 'week' | 'month' | 'shifts';
+
+interface ShiftRow {
+  id: number;
+  closedAt: string;
+  closedBy: string;
+  sessionsCount: number;
+  totalMinutes: number;
+  cashExpected: number;
+  cardExpected: number;
+  transferExpected: number;
+  cashActual: number | null;
+  discrepancy: number | null;
+  note: string;
+}
 
 function toISO(d: Date): string {
   const y = d.getFullYear();
@@ -43,11 +57,14 @@ export default function ReportPage() {
   const [date, setDate] = useState(todayLocalISO());
   const [daily, setDaily] = useState<DailyReport | null>(null);
   const [range, setRange] = useState<RangeReport | null>(null);
+  const [shifts, setShifts] = useState<ShiftRow[]>([]);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     try {
-      if (mode === 'day') {
+      if (mode === 'shifts') {
+        setShifts(await api<ShiftRow[]>('/api/shifts'));
+      } else if (mode === 'day') {
         setDaily(await api<DailyReport>(`/api/reports/daily?date=${date}`));
       } else {
         const { from, to } = rangeFor(mode, date);
@@ -63,9 +80,9 @@ export default function ReportPage() {
     load();
   }, [load]);
 
-  const report = mode === 'day' ? daily : range;
+  const report = mode === 'day' ? daily : mode === 'shifts' ? null : range;
   const periodLabel =
-    mode === 'day'
+    mode === 'day' || mode === 'shifts'
       ? null
       : mode === 'week'
         ? `${rangeFor('week', date).from} — ${rangeFor('week', date).to}`
@@ -77,20 +94,64 @@ export default function ReportPage() {
 
       <div className="filters">
         <div className="seg">
-          {(['day', 'week', 'month'] as Mode[]).map((m) => (
+          {(['day', 'week', 'month', 'shifts'] as Mode[]).map((m) => (
             <button
               key={m}
               className={`seg-btn ${mode === m ? 'active' : ''}`}
               onClick={() => setMode(m)}
             >
-              {m === 'day' ? 'День' : m === 'week' ? 'Неделя' : 'Месяц'}
+              {m === 'day' ? 'День' : m === 'week' ? 'Неделя' : m === 'month' ? 'Месяц' : 'Смены'}
             </button>
           ))}
         </div>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {mode !== 'shifts' && (
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        )}
       </div>
       {periodLabel && <div className="muted" style={{ marginBottom: 12 }}>{periodLabel}</div>}
       {error && <div className="error-text">{error}</div>}
+
+      {mode === 'shifts' && (
+        <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Когда</th>
+                <th>Кто сдал</th>
+                <th>Сессий</th>
+                <th>💵 Программа</th>
+                <th>💵 Факт</th>
+                <th>Расхождение</th>
+                <th>💳 Карта</th>
+                <th>📲 Перевод</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shifts.map((s) => (
+                <tr key={s.id}>
+                  <td>{new Date(s.closedAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{s.closedBy}</td>
+                  <td>{s.sessionsCount}</td>
+                  <td>{formatUZS(s.cashExpected)}</td>
+                  <td>{formatUZS(s.cashActual)}</td>
+                  <td style={{ fontWeight: 700, color: (s.discrepancy ?? 0) === 0 ? 'var(--green)' : (s.discrepancy ?? 0) < 0 ? 'var(--red)' : 'var(--yellow)' }}>
+                    {s.discrepancy === null ? '—' : s.discrepancy === 0 ? '✓ 0' : formatUZS(s.discrepancy)}
+                  </td>
+                  <td>{formatUZS(s.cardExpected)}</td>
+                  <td>{formatUZS(s.transferExpected)}</td>
+                  <td className="muted">{s.note}</td>
+                </tr>
+              ))}
+              {shifts.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="muted">Смены ещё не сдавались</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {report && (
         <>

@@ -20,6 +20,20 @@ CREATE TABLE IF NOT EXISTS stations (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS shifts (
+  id                SERIAL PRIMARY KEY,
+  closed_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  closed_by         INTEGER NOT NULL REFERENCES users(id),
+  sessions_count    INTEGER NOT NULL,
+  total_minutes     INTEGER NOT NULL,
+  cash_expected     BIGINT NOT NULL,   -- наличные по программе
+  card_expected     BIGINT NOT NULL,
+  transfer_expected BIGINT NOT NULL,
+  cash_actual       BIGINT,            -- наличные по факту (пересчёт кассы)
+  discrepancy       BIGINT,            -- факт минус программа (минус = недостача)
+  note              TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id             SERIAL PRIMARY KEY,
   station_id     INTEGER NOT NULL REFERENCES stations(id),
@@ -34,8 +48,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   note           TEXT NOT NULL DEFAULT '',
   opened_by      INTEGER NOT NULL REFERENCES users(id),
   closed_by      INTEGER REFERENCES users(id),
+  shift_id       INTEGER REFERENCES shifts(id), -- заполняется при сдаче смены
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_sessions_shift ON sessions (shift_id);
 
 -- На одной точке может быть только одна активная сессия
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_session_per_station

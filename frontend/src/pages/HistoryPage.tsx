@@ -9,6 +9,7 @@ import {
 } from '../shared/format';
 import type { SessionRow, Station } from '../shared/types';
 import { useAuth } from '../shared/auth';
+import ShiftCloseModal from '../components/ShiftCloseModal';
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -18,6 +19,8 @@ export default function HistoryPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [rows, setRows] = useState<SessionRow[]>([]);
   const [error, setError] = useState('');
+  const [shiftModal, setShiftModal] = useState(false);
+  const [shiftMsg, setShiftMsg] = useState('');
 
   useEffect(() => {
     api<Station[]>('/api/stations').then(setStations).catch(() => {});
@@ -66,7 +69,11 @@ export default function HistoryPage() {
         <span className="muted">
           Сессий: {rows.length} · Итого: <b>{formatUZS(total)}</b>
         </span>
+        <button className="btn btn-primary" onClick={() => setShiftModal(true)}>
+          💰 Сдать смену
+        </button>
       </div>
+      {shiftMsg && <div className="muted" style={{ marginBottom: 10 }}>{shiftMsg}</div>}
       {error && <div className="error-text">{error}</div>}
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table className="table">
@@ -111,6 +118,16 @@ export default function HistoryPage() {
           </tbody>
         </table>
       </div>
+      {shiftModal && (
+        <ShiftCloseModal
+          onClose={() => setShiftModal(false)}
+          onDone={() => {
+            setShiftModal(false);
+            setShiftMsg('✓ Смена сдана');
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
