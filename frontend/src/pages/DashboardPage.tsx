@@ -3,11 +3,13 @@ import { api } from '../shared/api';
 import type { Station } from '../shared/types';
 import StationCard from '../components/StationCard';
 import CloseSessionModal from '../components/CloseSessionModal';
+import StartSessionModal from '../components/StartSessionModal';
 
 export default function DashboardPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [now, setNow] = useState(Date.now());
   const [closing, setClosing] = useState<Station | null>(null);
+  const [starting, setStarting] = useState<Station | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -30,6 +32,11 @@ export default function DashboardPage() {
   }, [load]);
 
   async function onStart(station: Station) {
+    // Точки с групповым тарифом — через модалку (число людей + выбор тарифа)
+    if (station.groupEnabled) {
+      setStarting(station);
+      return;
+    }
     try {
       await api('/api/sessions/start', { method: 'POST', body: { stationId: station.id } });
       await load();
@@ -69,6 +76,16 @@ export default function DashboardPage() {
       </div>
       {visible.length === 0 && (
         <div className="muted mt">Нет активных точек. Добавь их в «Настройках».</div>
+      )}
+      {starting && (
+        <StartSessionModal
+          station={starting}
+          onClose={() => setStarting(null)}
+          onDone={() => {
+            setStarting(null);
+            load();
+          }}
+        />
       )}
       {closing && closing.activeSession && (
         <CloseSessionModal

@@ -9,6 +9,8 @@ interface StationForm {
   name: string;
   type: StationType;
   hourlyRate: string;
+  groupEnabled: boolean;
+  groupRate: string;
   isActive: boolean;
   sortOrder: string;
 }
@@ -18,6 +20,8 @@ const emptyForm: StationForm = {
   name: '',
   type: 'ps',
   hourlyRate: '15000',
+  groupEnabled: false,
+  groupRate: '18000',
   isActive: true,
   sortOrder: '0',
 };
@@ -108,6 +112,8 @@ export default function SettingsPage() {
       name: form.name.trim(),
       type: form.type,
       hourlyRate: Number(form.hourlyRate),
+      groupEnabled: form.groupEnabled,
+      groupRate: form.groupEnabled ? Number(form.groupRate) : null,
       isActive: form.isActive,
       sortOrder: Number(form.sortOrder) || 0,
     };
@@ -281,7 +287,14 @@ export default function SettingsPage() {
                 <td>
                   <span className={`badge ${s.type}`}>{TYPE_LABELS[s.type]}</span>
                 </td>
-                <td>{formatUZS(s.hourlyRate)}</td>
+                <td>
+                  {formatUZS(s.hourlyRate)}
+                  {s.groupEnabled && s.groupRate ? (
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      👥 3+: {formatUZS(s.groupRate)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="muted">{s.isActive ? 'Активна' : 'Выключена'}</td>
                 <td>
                   <div className="btn-row">
@@ -293,6 +306,8 @@ export default function SettingsPage() {
                           name: s.name,
                           type: s.type,
                           hourlyRate: String(s.hourlyRate),
+                          groupEnabled: s.groupEnabled,
+                          groupRate: String(s.groupRate ?? 18000),
                           isActive: s.isActive,
                           sortOrder: String(s.sortOrder),
                         })
@@ -338,7 +353,7 @@ export default function SettingsPage() {
               </select>
             </div>
             <div className="field">
-              <label>Тариф, сум/час</label>
+              <label>Тариф, сум/час (1–2 человека)</label>
               <input
                 type="number"
                 min={0}
@@ -347,6 +362,31 @@ export default function SettingsPage() {
                 onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
               />
             </div>
+            <div className="field">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={form.groupEnabled}
+                  onChange={(e) => setForm({ ...form, groupEnabled: e.target.checked })}
+                />{' '}
+                👥 Групповой тариф (спрашивать число человек)
+              </label>
+            </div>
+            {form.groupEnabled && (
+              <div className="field">
+                <label>Тариф при 3+ человек, сум/час</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={500}
+                  value={form.groupRate}
+                  onChange={(e) => setForm({ ...form, groupRate: e.target.value })}
+                />
+                <div className="muted" style={{ fontSize: 13 }}>
+                  На этой точке работник при старте укажет число человек и выберет тариф
+                </div>
+              </div>
+            )}
             <div className="field">
               <label>Порядок сортировки</label>
               <input

@@ -13,23 +13,54 @@ sessionsRouter.use(authRequired);
 sessionsRouter.post(
   '/start',
   asyncHandler(async (req, res) => {
-    const parsed = z.object({ stationId: z.number().int() }).safeParse(req.body);
+    const parsed = z
+      .object({
+        stationId: z.number().int(),
+        playersCount: z.number().int().min(1).max(20).optional(),
+        rateKind: z.enum(['standard', 'group']).optional(),
+      })
+      .safeParse(req.body);
     if (!parsed.success) throw new HttpError(400, 'Укажите точку');
-    const { stationId } = parsed.data;
+    const { stationId, playersCount, rateKind } = parsed.data;
 
-    const st = await query<{ id: number; hourly_rate: number; is_active: boolean }>(
-      'SELECT id, hourly_rate, is_active FROM stations WHERE id = $1',
+    const st = await query<{
+      id: number;
+      hourly_rate: number;
+      is_active: boolean;
+      group_enabled: boolean;
+      group_rate: number | null;
+    }>(
+      'SELECT id, hourly_rate, is_active, group_enabled, group_rate FROM stations WHERE id = $1',
       [stationId],
     );
     if (!st.rows[0]) throw new HttpError(404, 'Точка не найдена');
     if (!st.rows[0].is_active) throw new HttpError(400, 'Точка выключена');
 
+    const station = st.rows[0];
+    let rate = station.hourly_rate;
+    let kind: 'standard' | 'group' = 'standard';
+
+    if (station.group_enabled) {
+      // На точках с групповым тарифом работник обязан указать число людей
+      if (!playersCount) throw new HttpError(400, 'Укажите, сколько человек');
+      kind = rateKind ?? 'standard';
+      if (kind === 'group') {
+        if (playersCount < 3) {
+          throw new HttpError(400, 'Групповой тариф — от 3 человек');
+        }
+        if (!station.group_rate) {
+          throw new HttpError(400, 'Групповой тариф не настроен для этой точки');
+        }
+        rate = station.group_rate;
+      }
+    }
+
     try {
       const { rows } = await query(
-        `INSERT INTO sessions (station_id, hourly_rate, opened_by)
-         VALUES ($1, $2, $3)
+        `INSERT INTO sessions (station_id, hourly_rate, opened_by, players_count, rate_kind)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id, started_at`,
-        [stationId, st.rows[0].hourly_rate, req.user!.id],
+        [stationId, rate, req.user!.id, playersCount ?? null, kind],
       );
       res.status(201).json({ id: rows[0].id, startedAt: rows[0].started_at });
     } catch (err: unknown) {
@@ -183,6 +214,7 @@ sessionsRouter.get(
       `SELECT se.id, se.station_id, st.name AS station_name, st.type AS station_type,
               se.status, se.started_at, se.ended_at, se.hourly_rate, se.minutes,
               se.amount, se.amount_final, se.payment_method, se.note,
+              se.players_count, se.rate_kind,
               u.username AS closed_by_username
        FROM sessions se
        JOIN stations st ON st.id = se.station_id
@@ -207,6 +239,8 @@ sessionsRouter.get(
         amountFinal: r.amount_final,
         paymentMethod: r.payment_method,
         note: r.note,
+        playersCount: r.players_count,
+        rateKind: r.rate_kind,
         closedBy: r.closed_by_username,
       })),
     );

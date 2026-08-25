@@ -12,6 +12,9 @@ export interface ActiveSession {
   id: number;
   startedAt: string;
   hourlyRate: number;
+  playersCount: number | null;
+  rateKind: 'standard' | 'group';
+  openedBy: string | null;
 }
 
 export interface Station {
@@ -19,6 +22,8 @@ export interface Station {
   name: string;
   type: StationType;
   hourlyRate: number;
+  groupEnabled: boolean;
+  groupRate: number | null;
   isActive: boolean;
   sortOrder: number;
   activeSession: ActiveSession | null;
@@ -38,6 +43,8 @@ export interface SessionRow {
   amountFinal: number | null;
   paymentMethod: PaymentMethod | null;
   note: string;
+  playersCount: number | null;
+  rateKind: 'standard' | 'group';
   closedBy: string | null;
 }
 

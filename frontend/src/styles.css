@@ -206,6 +206,38 @@ input:focus, select:focus { border-color: var(--accent); }
 /* График */
 .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
+/* Выбор числа человек при старте */
+.players-picker { display: flex; align-items: center; gap: 14px; }
+.players-picker .btn { min-width: 52px; font-size: 22px; padding: 8px 0; }
+.players-num {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: center;
+}
+
+/* Карточки выбора тарифа */
+.rate-options { display: flex; gap: 10px; }
+.rate-option {
+  flex: 1;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: left;
+  line-height: 1.4;
+}
+.rate-option b { color: var(--text); font-size: 15px; }
+.rate-option.active { border-color: var(--accent); color: var(--text); }
+.rate-option.active b { color: var(--accent); }
+.rate-option:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 768px) {
+  .rate-options { flex-direction: column; }
+}
+
 /* ==================== Мобильная версия ==================== */
 @media (max-width: 768px) {
   body { font-size: 16px; } /* не даём iOS зумить поля ввода */

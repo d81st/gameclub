@@ -69,9 +69,11 @@ export default function HistoryPage() {
         <span className="muted">
           Сессий: {rows.length} · Итого: <b>{formatUZS(total)}</b>
         </span>
-        <button className="btn btn-primary" onClick={() => setShiftModal(true)}>
-          💰 Сдать смену
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => setShiftModal(true)}>
+            💰 Сдать смену
+          </button>
+        )}
       </div>
       {shiftMsg && <div className="muted" style={{ marginBottom: 10 }}>{shiftMsg}</div>}
       {error && <div className="error-text">{error}</div>}
@@ -83,6 +85,7 @@ export default function HistoryPage() {
               <th>Начало</th>
               <th>Конец</th>
               <th>Время</th>
+              <th>Чел.</th>
               <th>Сумма</th>
               <th>Оплата</th>
               <th>Заметка</th>
@@ -96,6 +99,10 @@ export default function HistoryPage() {
                 <td>{formatDateTime(r.startedAt)}</td>
                 <td>{formatDateTime(r.endedAt)}</td>
                 <td>{r.minutes !== null ? formatDuration(r.minutes) : '—'}</td>
+                <td className="muted">
+                  {r.playersCount ?? '—'}
+                  {r.rateKind === 'group' ? ' 👥' : ''}
+                </td>
                 <td>
                   {r.status === 'cancelled' ? (
                     <span className="badge cancelled">Отменена</span>
@@ -110,7 +117,7 @@ export default function HistoryPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} className="muted">
+                <td colSpan={isAdmin ? 9 : 8} className="muted">
                   Нет сессий за выбранный день
                 </td>
               </tr>

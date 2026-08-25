@@ -11,13 +11,15 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS stations (
-  id           SERIAL PRIMARY KEY,
-  name         TEXT NOT NULL,
-  type         TEXT NOT NULL CHECK (type IN ('ps', 'billiard')),
-  hourly_rate  INTEGER NOT NULL CHECK (hourly_rate >= 0), -- сум/час
-  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
-  sort_order   INTEGER NOT NULL DEFAULT 0,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  id            SERIAL PRIMARY KEY,
+  name          TEXT NOT NULL,
+  type          TEXT NOT NULL CHECK (type IN ('ps', 'billiard')),
+  hourly_rate   INTEGER NOT NULL CHECK (hourly_rate >= 0), -- сум/час (стандарт, 1-2 чел)
+  group_enabled BOOLEAN NOT NULL DEFAULT FALSE,            -- групповой тариф включён (напр. PS3)
+  group_rate    INTEGER,                                   -- сум/час при 3+ человек
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order    INTEGER NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS shifts (
@@ -46,6 +48,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   amount_final   INTEGER,                   -- фактически взятая сумма (может отличаться)
   payment_method TEXT CHECK (payment_method IN ('cash', 'card', 'transfer')),
   note           TEXT NOT NULL DEFAULT '',
+  players_count  INTEGER,                                  -- сколько человек (для группового тарифа)
+  rate_kind      TEXT NOT NULL DEFAULT 'standard' CHECK (rate_kind IN ('standard','group')),
   opened_by      INTEGER NOT NULL REFERENCES users(id),
   closed_by      INTEGER REFERENCES users(id),
   shift_id       INTEGER REFERENCES shifts(id), -- заполняется при сдаче смены

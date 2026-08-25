@@ -5,7 +5,8 @@ import { HttpError, asyncHandler } from '../../middleware/errors.js';
 import { adminOnly, authRequired } from '../../middleware/auth.js';
 
 export const shiftsRouter = Router();
-shiftsRouter.use(authRequired);
+// Сдача смены и просмотр смен — только админ
+shiftsRouter.use(authRequired, adminOnly);
 
 /** Итоги несданных сессий (то, что войдёт в сдаваемую смену) */
 shiftsRouter.get(
