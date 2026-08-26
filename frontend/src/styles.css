@@ -74,6 +74,102 @@ h2 { font-size: 16px; margin: 20px 0 10px; color: var(--muted); font-weight: 600
   gap: 14px;
 }
 
+/* Занятые точки — широкие карточки, свободные — компактные */
+.grid-busy {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.grid-free {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.station-meta { color: var(--muted); font-size: 13px; }
+
+.station-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 4px 0 2px;
+}
+.amounts { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+.amount-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.amount-row span:last-child { color: var(--text); font-variant-numeric: tabular-nums; }
+.amount-row.total {
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  margin-top: 2px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.amount-row.total span:last-child { color: var(--green); }
+
+.station-actions { display: flex; gap: 8px; align-items: center; }
+.station-actions .btn { flex: 1; }
+.station-actions .menu-wrap { flex: 0 0 auto; position: relative; }
+.menu-pop {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 20;
+  min-width: 190px;
+}
+.menu-pop button {
+  background: none;
+  border: none;
+  color: var(--red);
+  padding: 10px 12px;
+  width: 100%;
+  text-align: left;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.menu-pop button:hover { background: var(--panel); }
+
+/* Окно заказа с карточки точки */
+.modal-wide { max-width: 560px; }
+.order-list {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.order-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  padding: 3px 0;
+}
+.order-products { max-height: 38vh; overflow-y: auto; }
+.order-cart {
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.product-grid.compact { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.product-grid.compact .product-tile { min-height: 62px; padding: 10px; }
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -370,11 +466,16 @@ input:focus, select:focus { border-color: var(--accent); }
 
   h1 { font-size: 19px; margin-bottom: 12px; }
 
-  /* Карточки точек: две колонки на телефоне */
+  /* Карточки точек: занятые — во всю ширину, свободные — по две */
   .grid-stations {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
+  .grid-busy { grid-template-columns: 1fr; gap: 10px; }
+  .grid-free { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .amounts { min-width: 132px; }
+  .modal-wide { max-width: 100%; }
+  .order-products { max-height: 30vh; }
   .card { padding: 12px; }
   .station-name { font-size: 15px; }
   .timer { font-size: 21px; }
@@ -413,5 +514,5 @@ input:focus, select:focus { border-color: var(--accent); }
 
 /* Совсем узкие экраны — одна колонка карточек */
 @media (max-width: 360px) {
-  .grid-stations { grid-template-columns: 1fr; }
+  .grid-stations, .grid-free { grid-template-columns: 1fr; }
 }

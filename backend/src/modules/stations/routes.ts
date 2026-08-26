@@ -30,10 +30,16 @@ stationsRouter.get(
               a.id AS active_session_id, a.started_at AS active_started_at,
               a.hourly_rate AS active_hourly_rate, a.players_count AS active_players,
               a.rate_kind AS active_rate_kind, u.username AS active_opened_by,
-              u.full_name AS active_opened_by_name
+              u.full_name AS active_opened_by_name,
+              COALESCE(bar.total, 0) AS active_bar_total
        FROM stations s
        LEFT JOIN sessions a ON a.station_id = s.id AND a.status = 'active'
        LEFT JOIN users u ON u.id = a.opened_by
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(total), 0)::bigint AS total
+         FROM sales
+         WHERE session_id = a.id AND payment_method IS NULL AND deleted_at IS NULL
+       ) bar ON TRUE
        ORDER BY s.sort_order, s.id`,
     );
     res.json(
@@ -54,6 +60,7 @@ stationsRouter.get(
               playersCount: r.active_players,
               rateKind: r.active_rate_kind,
               openedBy: r.active_opened_by_name || r.active_opened_by,
+              barAmount: Number(r.active_bar_total),
             }
           : null,
       })),

@@ -25,6 +25,10 @@ const createSchema = z
 salesRouter.post(
   '/',
   asyncHandler(async (req, res) => {
+    // Продаёт только работник за стойкой — админ наблюдает
+    if (req.user!.role === 'admin') {
+      throw new HttpError(403, 'Продажи оформляет работник');
+    }
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
       throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Неверные данные');
@@ -143,6 +147,37 @@ salesRouter.get(
         stationName: r.station_name,
         note: r.note,
         createdBy: r.created_by_name || r.created_by,
+        items: r.items,
+      })),
+    );
+  }),
+);
+
+/** Товары, висящие на конкретной активной сессии (для окна заказа с карточки точки) */
+salesRouter.get(
+  '/session/:sessionId',
+  asyncHandler(async (req, res) => {
+    const sessionId = Number(req.params.sessionId);
+    if (!Number.isInteger(sessionId)) throw new HttpError(400, 'Неверный id');
+    const { rows } = await query(
+      `SELECT s.id, s.created_at, s.total,
+              COALESCE(
+                json_agg(json_build_object('name', si.product_name, 'qty', si.qty, 'amount', si.amount)
+                         ORDER BY si.id) FILTER (WHERE si.id IS NOT NULL),
+                '[]'
+              ) AS items
+       FROM sales s
+       LEFT JOIN sale_items si ON si.sale_id = s.id
+       WHERE s.session_id = $1 AND s.payment_method IS NULL AND s.deleted_at IS NULL
+       GROUP BY s.id
+       ORDER BY s.created_at`,
+      [sessionId],
+    );
+    res.json(
+      rows.map((r) => ({
+        id: r.id,
+        createdAt: r.created_at,
+        total: Number(r.total),
         items: r.items,
       })),
     );

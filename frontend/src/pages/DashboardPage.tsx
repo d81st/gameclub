@@ -4,12 +4,14 @@ import type { Station } from '../shared/types';
 import StationCard from '../components/StationCard';
 import CloseSessionModal from '../components/CloseSessionModal';
 import StartSessionModal from '../components/StartSessionModal';
+import StationBarModal from '../components/StationBarModal';
 
 export default function DashboardPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [now, setNow] = useState(Date.now());
   const [closing, setClosing] = useState<Station | null>(null);
   const [starting, setStarting] = useState<Station | null>(null);
+  const [barFor, setBarFor] = useState<Station | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -57,23 +59,44 @@ export default function DashboardPage() {
   }
 
   const visible = stations.filter((s) => s.isActive);
+  const busy = visible.filter((s) => s.activeSession);
+  const free = visible.filter((s) => !s.activeSession);
+
+  const cardProps = {
+    now,
+    onStart,
+    onStop: setClosing,
+    onCancel,
+    onBar: setBarFor,
+  };
 
   return (
     <div>
       <h1>Точки</h1>
       {error && <div className="error-text" style={{ marginBottom: 12 }}>{error}</div>}
-      <div className="grid-stations">
-        {visible.map((s) => (
-          <StationCard
-            key={s.id}
-            station={s}
-            now={now}
-            onStart={onStart}
-            onStop={setClosing}
-            onCancel={onCancel}
-          />
-        ))}
-      </div>
+
+      {busy.length > 0 && (
+        <>
+          <h2>Занято ({busy.length})</h2>
+          <div className="grid-busy">
+            {busy.map((s) => (
+              <StationCard key={s.id} station={s} {...cardProps} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {free.length > 0 && (
+        <>
+          <h2>Свободно ({free.length})</h2>
+          <div className="grid-free">
+            {free.map((s) => (
+              <StationCard key={s.id} station={s} {...cardProps} />
+            ))}
+          </div>
+        </>
+      )}
+
       {visible.length === 0 && (
         <div className="muted mt">Нет активных точек. Добавь их в «Настройках».</div>
       )}
@@ -85,6 +108,13 @@ export default function DashboardPage() {
             setStarting(null);
             load();
           }}
+        />
+      )}
+      {barFor && barFor.activeSession && (
+        <StationBarModal
+          station={barFor}
+          onClose={() => setBarFor(null)}
+          onDone={load}
         />
       )}
       {closing && closing.activeSession && (

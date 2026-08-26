@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../shared/api';
+import { useAuth } from '../shared/auth';
 import { formatUZS, PAYMENT_LABELS } from '../shared/format';
 import type { PaymentMethod, Product, SaleRow, Station } from '../shared/types';
 
@@ -10,6 +12,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function BarPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [products, setProducts] = useState<Product[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -103,7 +107,20 @@ export default function BarPage() {
       {error && <div className="error-text" style={{ marginBottom: 10 }}>{error}</div>}
       {msg && <div className="muted" style={{ marginBottom: 10 }}>{msg}</div>}
 
-      {products.length === 0 ? (
+      {isAdmin && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="muted">
+            Продажи оформляет работник за стойкой. Здесь ты видишь, что и на сколько продано.
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <Link to="/settings" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+              Управлять товарами
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {isAdmin ? null : products.length === 0 ? (
         <div className="muted">Товаров пока нет — админ добавляет их в «Настройках».</div>
       ) : (
         grouped.map(
@@ -173,7 +190,7 @@ export default function BarPage() {
         </table>
       </div>
 
-      {cartItems.length > 0 && (
+      {!isAdmin && cartItems.length > 0 && (
         <div className="cart-bar">
           <div className="cart-items">
             {cartItems.map((x) => (

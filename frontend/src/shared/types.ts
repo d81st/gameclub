@@ -15,6 +15,7 @@ export interface ActiveSession {
   playersCount: number | null;
   rateKind: 'standard' | 'group';
   openedBy: string | null;
+  barAmount: number;
 }
 
 export interface Station {
