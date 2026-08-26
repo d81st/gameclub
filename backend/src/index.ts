@@ -10,6 +10,8 @@ import { sessionsRouter } from './modules/sessions/routes.js';
 import { reportsRouter } from './modules/reports/routes.js';
 import { usersRouter } from './modules/users/routes.js';
 import { shiftsRouter } from './modules/shifts/routes.js';
+import { productsRouter } from './modules/products/routes.js';
+import { salesRouter } from './modules/sales/routes.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { pool } from './db/pool.js';
 
@@ -42,6 +44,8 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/shifts', shiftsRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/sales', salesRouter);
 
 // Раздача собранного фронтенда (production: frontend/dist копируется в backend/public)
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');

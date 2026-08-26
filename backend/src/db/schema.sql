@@ -63,3 +63,42 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_session_per_station
 
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions (started_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions (status);
+
+-- Бар: каталог товаров и продажи
+CREATE TABLE IF NOT EXISTS products (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL,
+  price      INTEGER NOT NULL CHECK (price >= 0),
+  category   TEXT NOT NULL DEFAULT 'drink' CHECK (category IN ('drink','snack','other')),
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sales (
+  id             SERIAL PRIMARY KEY,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by     INTEGER NOT NULL REFERENCES users(id),
+  session_id     INTEGER REFERENCES sessions(id), -- если привязано к точке, оплата при закрытии сессии
+  payment_method TEXT CHECK (payment_method IN ('cash','card','transfer')),
+  total          BIGINT NOT NULL,
+  note           TEXT NOT NULL DEFAULT '',
+  shift_id       INTEGER REFERENCES shifts(id),
+  deleted_at     TIMESTAMPTZ,
+  deleted_by     INTEGER REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS sale_items (
+  id           SERIAL PRIMARY KEY,
+  sale_id      INTEGER NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+  product_id   INTEGER REFERENCES products(id),
+  product_name TEXT NOT NULL,   -- снимок названия на момент продажи
+  unit_price   INTEGER NOT NULL, -- снимок цены
+  qty          INTEGER NOT NULL CHECK (qty > 0),
+  amount       BIGINT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales (created_at);
+CREATE INDEX IF NOT EXISTS idx_sales_session ON sales (session_id);
+CREATE INDEX IF NOT EXISTS idx_sales_shift ON sales (shift_id);
+CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items (sale_id);

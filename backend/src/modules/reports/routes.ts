@@ -60,6 +60,8 @@ reportsRouter.get(
       sessionsCount: number;
       totalMinutes: number;
       revenue: number;
+      barRevenue?: number;
+      totalRevenue?: number;
     }> = [];
     for (let t = new Date(`${from}T00:00:00Z`); ; t = new Date(t.getTime() + 86400000)) {
       const key = t.toISOString().slice(0, 10);
@@ -73,13 +75,53 @@ reportsRouter.get(
       });
     }
 
+    // Бар за период: по дням и топ товаров
+    const barByDay = await query(
+      `SELECT (created_at AT TIME ZONE $3)::date::text AS day,
+              COUNT(*)::int AS sales_count,
+              COALESCE(SUM(total), 0)::bigint AS revenue
+       FROM sales
+       WHERE deleted_at IS NULL AND payment_method IS NOT NULL
+         AND (created_at AT TIME ZONE $3)::date BETWEEN $1::date AND $2::date
+       GROUP BY day`,
+      [from, to, tz],
+    );
+    const barMap = new Map(barByDay.rows.map((r) => [r.day, Number(r.revenue)]));
+    for (const d of series) {
+      d.barRevenue = barMap.get(d.day) ?? 0;
+      d.totalRevenue = d.revenue + d.barRevenue;
+    }
+
+    const topProducts = await query(
+      `SELECT si.product_name AS name, SUM(si.qty)::int AS qty,
+              COALESCE(SUM(si.amount), 0)::bigint AS revenue
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       WHERE s.deleted_at IS NULL AND s.payment_method IS NOT NULL
+         AND (s.created_at AT TIME ZONE $3)::date BETWEEN $1::date AND $2::date
+       GROUP BY si.product_name
+       ORDER BY revenue DESC
+       LIMIT 10`,
+      [from, to, tz],
+    );
+
+    const barRevenue = series.reduce((s, d) => s + (d.barRevenue ?? 0), 0);
+    const timeRevenue = series.reduce((s, d) => s + d.revenue, 0);
+
     res.json({
       from,
       to,
       days: series,
       sessionsCount: series.reduce((s, d) => s + d.sessionsCount, 0),
       totalMinutes: series.reduce((s, d) => s + d.totalMinutes, 0),
-      revenue: series.reduce((s, d) => s + d.revenue, 0),
+      revenue: timeRevenue,
+      barRevenue,
+      totalRevenue: timeRevenue + barRevenue,
+      topProducts: topProducts.rows.map((r) => ({
+        name: r.name,
+        qty: r.qty,
+        revenue: Number(r.revenue),
+      })),
       byStation: byStation.rows.map((r) => ({
         stationId: r.id,
         name: r.name,
@@ -141,11 +183,40 @@ reportsRouter.get(
       [date, tz],
     );
 
+    // Бар за этот день
+    const bar = await query(
+      `SELECT COUNT(*)::int AS sales_count, COALESCE(SUM(total), 0)::bigint AS revenue
+       FROM sales
+       WHERE deleted_at IS NULL AND payment_method IS NOT NULL
+         AND (created_at AT TIME ZONE $2)::date = $1::date`,
+      [date, tz],
+    );
+    const topProducts = await query(
+      `SELECT si.product_name AS name, SUM(si.qty)::int AS qty,
+              COALESCE(SUM(si.amount), 0)::bigint AS revenue
+       FROM sale_items si
+       JOIN sales s ON s.id = si.sale_id
+       WHERE s.deleted_at IS NULL AND s.payment_method IS NOT NULL
+         AND (s.created_at AT TIME ZONE $2)::date = $1::date
+       GROUP BY si.product_name
+       ORDER BY revenue DESC
+       LIMIT 10`,
+      [date, tz],
+    );
+
     res.json({
       date,
       sessionsCount: totals.rows[0].sessions_count,
       totalMinutes: totals.rows[0].total_minutes,
       revenue: Number(totals.rows[0].revenue),
+      barSalesCount: bar.rows[0].sales_count,
+      barRevenue: Number(bar.rows[0].revenue),
+      totalRevenue: Number(totals.rows[0].revenue) + Number(bar.rows[0].revenue),
+      topProducts: topProducts.rows.map((r) => ({
+        name: r.name,
+        qty: r.qty,
+        revenue: Number(r.revenue),
+      })),
       byStation: byStation.rows.map((r) => ({
         stationId: r.id,
         name: r.name,

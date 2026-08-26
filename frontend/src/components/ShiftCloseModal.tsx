@@ -8,6 +8,10 @@ interface Pending {
   cashExpected: number;
   cardExpected: number;
   transferExpected: number;
+  timeCash: number;
+  barCash: number;
+  barSalesCount: number;
+  barTotal: number;
   activeSessions: number;
 }
 
@@ -69,11 +73,21 @@ export default function ShiftCloseModal({ onClose, onDone }: Props) {
             )}
             <div className="muted">
               Сессий: {pending.sessionsCount} · Наиграно: {formatDuration(pending.totalMinutes)}
+              {pending.barSalesCount > 0 && (
+                <> · 🥤 продаж: {pending.barSalesCount} на {formatUZS(pending.barTotal)}</>
+              )}
             </div>
             <table className="table" style={{ fontSize: 14 }}>
               <tbody>
                 <tr>
-                  <td>💵 Наличные (по программе)</td>
+                  <td>
+                    💵 Наличные (по программе)
+                    {pending.barCash > 0 && (
+                      <div className="muted" style={{ fontSize: 12 }}>
+                        время {formatUZS(pending.timeCash)} + бар {formatUZS(pending.barCash)}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>
                     {formatUZS(pending.cashExpected)}
                   </td>

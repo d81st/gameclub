@@ -117,8 +117,25 @@ sessionsRouter.post(
          WHERE id = $8`,
         [endedAt, minutes, amount, finalAmount, paymentMethod, note, req.user!.id, id],
       );
+      // Товары, привязанные к этой сессии, оплачиваются тем же способом
+      const bar = await client.query<{ total: string }>(
+        `UPDATE sales SET payment_method = $1
+         WHERE session_id = $2 AND payment_method IS NULL AND deleted_at IS NULL
+         RETURNING total`,
+        [paymentMethod, id],
+      );
+      const barTotal = bar.rows.reduce((s, r) => s + Number(r.total), 0);
+
       await client.query('COMMIT');
-      res.json({ id, minutes, amount, amountFinal: finalAmount, endedAt });
+      res.json({
+        id,
+        minutes,
+        amount,
+        amountFinal: finalAmount,
+        barAmount: barTotal,
+        totalAmount: finalAmount + barTotal,
+        endedAt,
+      });
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -140,7 +157,26 @@ sessionsRouter.get(
     );
     if (!rows[0]) throw new HttpError(404, 'Активная сессия не найдена');
     const minutes = calcMinutes(new Date(rows[0].started_at), new Date());
-    res.json({ minutes, amount: calcAmount(minutes, rows[0].hourly_rate) });
+    const amount = calcAmount(minutes, rows[0].hourly_rate);
+
+    // Товары, висящие на этой сессии
+    const bar = await query<{ total: string; items: unknown }>(
+      `SELECT COALESCE(SUM(s.total), 0)::bigint AS total,
+              COALESCE(json_agg(json_build_object('name', si.product_name, 'qty', si.qty, 'amount', si.amount))
+                       FILTER (WHERE si.id IS NOT NULL), '[]') AS items
+       FROM sales s
+       LEFT JOIN sale_items si ON si.sale_id = s.id
+       WHERE s.session_id = $1 AND s.payment_method IS NULL AND s.deleted_at IS NULL`,
+      [id],
+    );
+    const barAmount = Number(bar.rows[0].total);
+    res.json({
+      minutes,
+      amount,
+      barAmount,
+      barItems: bar.rows[0].items,
+      totalAmount: amount + barAmount,
+    });
   }),
 );
 

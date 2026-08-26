@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
+import BarPage from './pages/BarPage';
 import ReportPage from './pages/ReportPage';
 import SettingsPage from './pages/SettingsPage';
 
@@ -27,6 +28,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/bar" element={<BarPage />} />
         <Route path="/history" element={<HistoryPage />} />
         {user.role === 'admin' && <Route path="/report" element={<ReportPage />} />}
         <Route path="/settings" element={<SettingsPage />} />

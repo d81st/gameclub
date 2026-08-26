@@ -24,13 +24,27 @@ shiftsRouter.get(
     const active = await query(
       `SELECT COUNT(*)::int AS n FROM sessions WHERE status = 'active'`,
     );
+    // Продажи бара, ещё не вошедшие в смену (оплаченные)
+    const bar = await query(
+      `SELECT COUNT(*)::int AS sales_count,
+              COALESCE(SUM(total) FILTER (WHERE payment_method = 'cash'), 0)::bigint AS cash,
+              COALESCE(SUM(total) FILTER (WHERE payment_method = 'card'), 0)::bigint AS card,
+              COALESCE(SUM(total) FILTER (WHERE payment_method = 'transfer'), 0)::bigint AS transfer
+       FROM sales
+       WHERE shift_id IS NULL AND deleted_at IS NULL AND payment_method IS NOT NULL`,
+    );
     const r = totals.rows[0];
+    const b = bar.rows[0];
     res.json({
       sessionsCount: r.sessions_count,
       totalMinutes: r.total_minutes,
-      cashExpected: Number(r.cash),
-      cardExpected: Number(r.card),
-      transferExpected: Number(r.transfer),
+      cashExpected: Number(r.cash) + Number(b.cash),
+      cardExpected: Number(r.card) + Number(b.card),
+      transferExpected: Number(r.transfer) + Number(b.transfer),
+      timeCash: Number(r.cash),
+      barCash: Number(b.cash),
+      barSalesCount: b.sales_count,
+      barTotal: Number(b.cash) + Number(b.card) + Number(b.transfer),
       activeSessions: active.rows[0].n,
     });
   }),
@@ -59,8 +73,15 @@ shiftsRouter.post(
          WHERE status = 'closed' AND shift_id IS NULL
          FOR UPDATE`,
       );
-      if (pending.rows.length === 0) {
-        throw new HttpError(400, 'Нет закрытых сессий для сдачи смены');
+      // Продажи бара, ещё не вошедшие в смену
+      const pendingSales = await client.query(
+        `SELECT id, total, payment_method FROM sales
+         WHERE shift_id IS NULL AND deleted_at IS NULL AND payment_method IS NOT NULL
+         FOR UPDATE`,
+      );
+
+      if (pending.rows.length === 0 && pendingSales.rows.length === 0) {
+        throw new HttpError(400, 'Нет закрытых сессий и продаж для сдачи смены');
       }
 
       let cash = 0;
@@ -70,6 +91,12 @@ shiftsRouter.post(
       for (const s of pending.rows) {
         minutes += s.minutes ?? 0;
         const amt = Number(s.amount_final ?? 0);
+        if (s.payment_method === 'cash') cash += amt;
+        else if (s.payment_method === 'card') card += amt;
+        else if (s.payment_method === 'transfer') transfer += amt;
+      }
+      for (const s of pendingSales.rows) {
+        const amt = Number(s.total);
         if (s.payment_method === 'cash') cash += amt;
         else if (s.payment_method === 'card') card += amt;
         else if (s.payment_method === 'transfer') transfer += amt;
@@ -100,12 +127,19 @@ shiftsRouter.post(
         `UPDATE sessions SET shift_id = $1 WHERE status <> 'active' AND shift_id IS NULL`,
         [shiftId],
       );
+      // И оплаченные продажи бара
+      await client.query(
+        `UPDATE sales SET shift_id = $1
+         WHERE shift_id IS NULL AND deleted_at IS NULL AND payment_method IS NOT NULL`,
+        [shiftId],
+      );
 
       await client.query('COMMIT');
       res.status(201).json({
         id: shiftId,
         closedAt: shift.rows[0].closed_at,
         sessionsCount: pending.rows.length,
+        salesCount: pendingSales.rows.length,
         cashExpected: cash,
         cardExpected: card,
         transferExpected: transfer,

@@ -14,7 +14,13 @@ export default function CloseSessionModal({ station, onClose, onDone }: Props) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const sessionId = station.activeSession!.id;
-  const [preview, setPreview] = useState<{ minutes: number; amount: number } | null>(null);
+  const [preview, setPreview] = useState<{
+    minutes: number;
+    amount: number;
+    barAmount: number;
+    barItems: Array<{ name: string; qty: number; amount: number }>;
+    totalAmount: number;
+  } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [override, setOverride] = useState('');
   const [note, setNote] = useState('');
@@ -22,7 +28,7 @@ export default function CloseSessionModal({ station, onClose, onDone }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api<{ minutes: number; amount: number }>(`/api/sessions/${sessionId}/preview`)
+    api<NonNullable<typeof preview>>(`/api/sessions/${sessionId}/preview`)
       .then(setPreview)
       .catch((err) => setError(err instanceof Error ? err.message : 'Ошибка'));
   }, [sessionId]);
@@ -54,9 +60,21 @@ export default function CloseSessionModal({ station, onClose, onDone }: Props) {
         <h3>Закрыть сессию — {station.name}</h3>
         {preview ? (
           <div>
-            <div className="muted">Время: {formatDuration(preview.minutes)}</div>
+            <div className="muted">
+              Время: {formatDuration(preview.minutes)} — {formatUZS(preview.amount)}
+            </div>
+            {preview.barAmount > 0 && (
+              <>
+                <div className="muted" style={{ marginTop: 4 }}>
+                  🥤 Бар: {formatUZS(preview.barAmount)}
+                  {preview.barItems?.length ? (
+                    <span> ({preview.barItems.map((i) => `${i.name}×${i.qty}`).join(', ')})</span>
+                  ) : null}
+                </div>
+              </>
+            )}
             <div style={{ fontSize: 24, fontWeight: 700, marginTop: 6 }}>
-              {formatUZS(preview.amount)}
+              Итого: {formatUZS(preview.totalAmount)}
             </div>
           </div>
         ) : (

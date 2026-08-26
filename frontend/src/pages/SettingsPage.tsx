@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../shared/api';
 import { useAuth } from '../shared/auth';
 import { formatUZS, TYPE_LABELS } from '../shared/format';
-import type { Station, StationType } from '../shared/types';
+import type { Product, ProductCategory, Station, StationType } from '../shared/types';
 
 interface StationForm {
   id: number | null;
@@ -42,6 +42,16 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [pwd, setPwd] = useState({ current: '', next: '' });
   const [pwdMsg, setPwdMsg] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [pForm, setPForm] = useState<{
+    id: number | null;
+    name: string;
+    price: string;
+    category: ProductCategory;
+    isActive: boolean;
+    sortOrder: string;
+  } | null>(null);
+  const [pError, setPError] = useState('');
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [wForm, setWForm] = useState<{ username: string; password: string; fullName: string } | null>(null);
   const [wError, setWError] = useState('');
@@ -64,10 +74,51 @@ export default function SettingsPage() {
     }
   }, [isAdmin]);
 
+  const loadProducts = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      setProducts(await api<Product[]>('/api/products'));
+    } catch {
+      /* не критично */
+    }
+  }, [isAdmin]);
+
   useEffect(() => {
     if (isAdmin) load();
     loadWorkers();
-  }, [load, loadWorkers, isAdmin]);
+    loadProducts();
+  }, [load, loadWorkers, loadProducts, isAdmin]);
+
+  async function saveProduct(e: FormEvent) {
+    e.preventDefault();
+    if (!pForm) return;
+    setPError('');
+    const body = {
+      name: pForm.name.trim(),
+      price: Number(pForm.price),
+      category: pForm.category,
+      isActive: pForm.isActive,
+      sortOrder: Number(pForm.sortOrder) || 0,
+    };
+    try {
+      if (pForm.id === null) await api('/api/products', { method: 'POST', body });
+      else await api(`/api/products/${pForm.id}`, { method: 'PUT', body });
+      setPForm(null);
+      await loadProducts();
+    } catch (err) {
+      setPError(err instanceof Error ? err.message : 'Ошибка');
+    }
+  }
+
+  async function removeProduct(p: Product) {
+    if (!window.confirm(`Удалить товар «${p.name}»?`)) return;
+    try {
+      await api(`/api/products/${p.id}`, { method: 'DELETE' });
+      await loadProducts();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Ошибка');
+    }
+  }
 
   async function createWorker(e: FormEvent) {
     e.preventDefault();
@@ -417,6 +468,140 @@ export default function SettingsPage() {
         </div>
       )}
       </>
+      )}
+
+      {isAdmin && (
+        <>
+          <h2 className="mt">🥤 Товары бара</h2>
+          <div className="card" style={{ padding: 0, marginBottom: 12, overflowX: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Категория</th>
+                  <th>Цена</th>
+                  <th>Статус</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td className="muted">
+                      {p.category === 'drink' ? 'Напитки' : p.category === 'snack' ? 'Снеки' : 'Прочее'}
+                    </td>
+                    <td>{formatUZS(p.price)}</td>
+                    <td className="muted">{p.isActive ? 'Активен' : 'Скрыт'}</td>
+                    <td>
+                      <div className="btn-row">
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() =>
+                            setPForm({
+                              id: p.id,
+                              name: p.name,
+                              price: String(p.price),
+                              category: p.category,
+                              isActive: p.isActive,
+                              sortOrder: String(p.sortOrder),
+                            })
+                          }
+                        >
+                          ✏️
+                        </button>
+                        <button className="btn btn-ghost" onClick={() => removeProduct(p)}>
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {products.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="muted">
+                      Товаров пока нет
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() =>
+              setPForm({
+                id: null,
+                name: '',
+                price: '10000',
+                category: 'drink',
+                isActive: true,
+                sortOrder: '0',
+              })
+            }
+          >
+            + Добавить товар
+          </button>
+
+          {pForm && (
+            <div className="modal-backdrop" onClick={() => setPForm(null)}>
+              <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={saveProduct}>
+                <h3>{pForm.id === null ? 'Новый товар' : 'Редактировать товар'}</h3>
+                <div className="field">
+                  <label>Название</label>
+                  <input
+                    type="text"
+                    value={pForm.name}
+                    onChange={(e) => setPForm({ ...pForm, name: e.target.value })}
+                    autoFocus
+                  />
+                </div>
+                <div className="field">
+                  <label>Цена, сум</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={pForm.price}
+                    onChange={(e) => setPForm({ ...pForm, price: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>Категория</label>
+                  <select
+                    value={pForm.category}
+                    onChange={(e) =>
+                      setPForm({ ...pForm, category: e.target.value as ProductCategory })
+                    }
+                  >
+                    <option value="drink">Напитки</option>
+                    <option value="snack">Снеки</option>
+                    <option value="other">Прочее</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={pForm.isActive}
+                      onChange={(e) => setPForm({ ...pForm, isActive: e.target.checked })}
+                    />{' '}
+                    Показывать работнику
+                  </label>
+                </div>
+                {pError && <div className="error-text">{pError}</div>}
+                <div className="btn-row">
+                  <button className="btn btn-primary" type="submit" disabled={!pForm.name.trim()}>
+                    Сохранить
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setPForm(null)}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </>
       )}
 
       <h2 className="mt">Смена пароля</h2>

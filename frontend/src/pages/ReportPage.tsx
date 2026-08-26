@@ -157,8 +157,16 @@ export default function ReportPage() {
         <>
           <div className="stat-row">
             <div className="stat">
-              <div className="label">Выручка</div>
+              <div className="label">Всего выручка</div>
+              <div className="value">{formatUZS(report.totalRevenue)}</div>
+            </div>
+            <div className="stat">
+              <div className="label">⏱ Время</div>
               <div className="value">{formatUZS(report.revenue)}</div>
+            </div>
+            <div className="stat">
+              <div className="label">🥤 Бар</div>
+              <div className="value">{formatUZS(report.barRevenue)}</div>
             </div>
             <div className="stat">
               <div className="label">Сессий</div>
@@ -169,6 +177,32 @@ export default function ReportPage() {
               <div className="value">{formatDuration(report.totalMinutes)}</div>
             </div>
           </div>
+
+          {report.topProducts?.length > 0 && (
+            <>
+              <h2>🥤 Топ товаров</h2>
+              <div className="card" style={{ padding: 0 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Товар</th>
+                      <th>Продано</th>
+                      <th>Выручка</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.topProducts.map((p) => (
+                      <tr key={p.name}>
+                        <td>{p.name}</td>
+                        <td>{p.qty} шт</td>
+                        <td>{formatUZS(p.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
 
           {mode !== 'day' && range && (
             <>

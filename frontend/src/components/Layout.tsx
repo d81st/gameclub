@@ -12,6 +12,10 @@ export default function Layout() {
           <span className="nav-icon">🎮</span>
           <span className="nav-label">Точки</span>
         </NavLink>
+        <NavLink to="/bar">
+          <span className="nav-icon">🥤</span>
+          <span className="nav-label">Бар</span>
+        </NavLink>
         <NavLink to="/history">
           <span className="nav-icon">🕒</span>
           <span className="nav-label">История</span>

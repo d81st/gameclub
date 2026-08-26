@@ -48,6 +48,29 @@ export interface SessionRow {
   closedBy: string | null;
 }
 
+export type ProductCategory = 'drink' | 'snack' | 'other';
+
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: ProductCategory;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface SaleRow {
+  id: number;
+  createdAt: string;
+  total: number;
+  paymentMethod: PaymentMethod | null;
+  sessionId: number | null;
+  stationName: string | null;
+  note: string;
+  createdBy: string;
+  items: Array<{ name: string; qty: number; amount: number }>;
+}
+
 export interface RangeReport {
   from: string;
   to: string;
@@ -56,10 +79,15 @@ export interface RangeReport {
     sessionsCount: number;
     totalMinutes: number;
     revenue: number;
+    barRevenue: number;
+    totalRevenue: number;
   }>;
   sessionsCount: number;
   totalMinutes: number;
   revenue: number;
+  barRevenue: number;
+  totalRevenue: number;
+  topProducts: Array<{ name: string; qty: number; revenue: number }>;
   byStation: Array<{
     stationId: number;
     name: string;
@@ -75,6 +103,10 @@ export interface DailyReport {
   sessionsCount: number;
   totalMinutes: number;
   revenue: number;
+  barSalesCount: number;
+  barRevenue: number;
+  totalRevenue: number;
+  topProducts: Array<{ name: string; qty: number; revenue: number }>;
   byStation: Array<{
     stationId: number;
     name: string;
